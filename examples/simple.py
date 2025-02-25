@@ -1,18 +1,12 @@
 import os
-from glass.client import Remote, host_func
+from glass.client import Remote
 
 remote = Remote("localhost", 8000)
 
 
-@host_func
-def host_print(*args):
-    print(*args)
-
-
-@remote.func
+@remote.capture
 def test_fn():
-    host_print(os.getcwd())
-    host_print(__name__)
+    print("hello")
 
 
-test_fn()
+print(test_fn())

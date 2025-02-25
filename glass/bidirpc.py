@@ -1,4 +1,5 @@
 import sys
+import socket
 import logging
 import traceback
 from enum import Enum
@@ -42,6 +43,8 @@ class BidirPC:
         return func
 
     def connect(self, conn):
+        assert self.conn is None
+        assert isinstance(conn, socket.socket)
         self.conn = conn
         return self
 
