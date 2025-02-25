@@ -3,9 +3,10 @@ import socket
 import logging
 from .serdes import Serializer
 from .bidirpc import BidirPC
+from .util import fmt_args_kwargs
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="[%(levelname)s][%(process)d] %(asctime)s %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)

@@ -4,6 +4,7 @@ from enum import Enum
 import msgpack
 import pickle
 from tblib import pickling_support
+from .util import fmt_args_kwargs, pretty
 
 pickling_support.install()
 
@@ -63,13 +64,11 @@ class BidirPC:
                 req = req[1:]
                 if req_type == ReqType.CALL:
                     cmd, args, kwargs = req
-                    logger.debug(f"endpoint {cmd} {len(args)} args, {len(kwargs)} kwargs")
                     resp = self.endpoints[cmd](*args, **kwargs)
                     resp = (ReqType.RET.value, resp)
                     self.conn.send(msgpack.packb(resp))
                 elif req_type == ReqType.RET:
                     ret = req[0]
-                    logger.debug(f"ret {ret}")
                     self.queue.append(ret)
                 elif req_type == ReqType.ERR:
                     s = req[0]
@@ -87,6 +86,8 @@ class BidirPC:
             packet = (ReqType.CALL.value, name, args, kwargs)
             packet = msgpack.packb(packet)
             self.conn.send(packet)
-            return self.recv()
+            resp = self.recv()
+            logger.debug(f"{name} -> ({fmt_args_kwargs(args, kwargs)}) -> {pretty(resp)}")
+            return resp
 
         return call
