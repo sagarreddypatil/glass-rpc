@@ -4,7 +4,7 @@ import socket
 import marshal
 
 from .bidirpc import BidirPC
-from .network_obj import obj_to_net, obj_from_net, add_network_obj_endpoints
+from .network_obj import obj_to_net, obj_from_net, add_network_obj_endpoints, can_serialize
 
 
 class Connection(BidirPC):
@@ -50,20 +50,25 @@ class Remote:
         for gn, val in items.items():
             if gn in EXCLUDE_GLOBALS or gn in self.synced_globals:
                 continue
-            if isinstance(val, types.ModuleType):  # need to import module
+            elif can_serialize(val):
+                self.conn.add_global_netobj(gn, obj_to_net(self.conn.objs, val))
+            elif isinstance(val, types.ModuleType):  # need to import module
                 self.conn.add_global_import(gn, val.__name__)
             elif "__module__" not in dir(val):  # arbitrary object
-                raise Exception(f"Cannot handle global {gn}")
-            elif "__name__" not in dir(val):  # built-in object?
-                raise Exception(f"Cannot handle global {gn}")
-            elif val.__module__ != parent_mod:  # need to import member
+                raise Exception(f"Cannot handle global {gn}, no __module__")
+            elif val.__module__ != parent_mod:  # this global was imported
                 self.conn.add_global_import(gn, val.__module__, val.__name__)
-            elif isinstance(
-                val, types.FunctionType
-            ):  # at same level as this function, send it
+            elif isinstance(val, types.FunctionType):  # at same level as this function, send it
                 self.func(val)
+            elif isinstance(val, type):  # class, send it
+                self.cls(val)
             else:
-                raise Exception(f"Cannot handle global {gn}")
+                self.conn.add_global_netobj(gn, obj_to_net(self.conn.objs, val))
+
+            self.synced_globals.add(gn)
+
+    def cls(self, cls: type):
+        raise Exception("classes unsupported")
 
     def func(self, func: types.FunctionType):
         if func.__closure__ is not None:

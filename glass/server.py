@@ -28,12 +28,24 @@ def add_global_func(name, code):
 
 
 @rpc.endpoint
+def add_global_class(name, code):
+    pass
+
+
+@rpc.endpoint
 def add_global_import(name, module, member=None):
     logger.info(f"from {module} import {member if member else '*'} as {name}")
     item = importlib.import_module(module)
     if member:
         item = getattr(item, member)
     glbls[name] = item
+
+
+@rpc.endpoint
+def add_global_netobj(name, obj):
+    logger.info(f"add_global_netobj {name}")
+    obj = obj_from_net(rpc, obj)
+    glbls[name] = obj
 
 
 @rpc.endpoint

@@ -16,6 +16,7 @@ class NetworkObj:
     """
 
     def __init__(self, rpc: BidirPC, obj_id):
+        logger.info(f"netobj<{obj_id}> constructed")
         self.rpc = rpc
         self.obj_id = obj_id
 
@@ -23,7 +24,9 @@ class NetworkObj:
         if name in ("rpc", "obj_id"):
             return super().__getattr__(name)
 
+        logger.info(f"netobj<{self.obj_id}>.__getattr__ {name}")
         ret = self.rpc.obj_getattr(self.obj_id, name)
+
         if ret[0] == RetType.VAL.value:
             return ret[1]
         elif ret[0] == RetType.REF.value:
@@ -31,12 +34,17 @@ class NetworkObj:
             return NetworkObj(self.rpc, obj_id)
 
     def __call__(self, *args, **kwargs):
+        logger.info(f"netobj<{self.obj_id}>.__call__ {args} {kwargs}")
         ret = self.rpc.obj_call(self.obj_id, args, kwargs)
         if ret[0] == RetType.VAL.value:
             return ret[1]
         elif ret[0] == RetType.REF.value:
             obj_id = ret[1]
             return NetworkObj(self.rpc, obj_id)
+
+    def __del__(self):
+        logger.info(f"netobj<{self.obj_id}>.__del__")
+        self.rpc.obj_del(self.obj_id)
 
 
 def obj_to_net(store, obj):
@@ -71,3 +79,8 @@ def add_network_obj_endpoints(rpc: BidirPC, store):
         logger.info(f"obj_call {obj} {args} {kwargs}")
         ret = store[obj_id].__call__(*args, **kwargs)
         return obj_to_net(store, ret)
+
+    @rpc.endpoint
+    def obj_del(obj_id):
+        logger.info(f"obj_del {obj_id}")
+        del store[obj_id]

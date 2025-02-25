@@ -1,25 +1,25 @@
-import os
 from glass.client import Remote
 
-remote = Remote("photon", 8000)
+remote = Remote("localhost", 8000)
+
+
+class SomeClass():
+    def __init__(self):
+        print("SomeClass.__init__()")
+
+    def some_method(self, *args):
+        print(f"SomeClass.some_method{args}")
+
+
+obj2 = SomeClass()
+
 
 @remote.func
-def test_cb(cb):
-    cb()
-    return hostname()
+def test_fn():
+    wow = SomeClass()
+    wow.some_method("A")
+    print(__name__)
+    obj2.some_method("B")
 
-@remote.func
-def open_file():
-    # file only exists on server
-    return open("/etc/os-release", "r")
 
-def callback():
-    print(hostname())
-
-def hostname():
-    return os.uname()[1]
-
-print(test_cb(callback))
-print()
-remote_file = open_file()
-print(remote_file.read())
+test_fn()
