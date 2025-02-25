@@ -1,9 +1,12 @@
-import sys
 import socket
 import logging
 import traceback
 from enum import Enum
 import msgpack
+import pickle
+from tblib import pickling_support
+
+pickling_support.install()
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +17,8 @@ class ReqType(Enum):
     ERR = 2
 
 
-class RemoteError(Exception):
-    pass
+# class RemoteError(Exception):
+#     pass
 
 
 def can_serialize(obj):
@@ -60,9 +63,7 @@ class BidirPC:
                 req = req[1:]
                 if req_type == ReqType.CALL:
                     cmd, args, kwargs = req
-                    logger.debug(
-                        f"endpoint {cmd} {len(args)} args, {len(kwargs)} kwargs"
-                    )
+                    logger.debug(f"endpoint {cmd} {len(args)} args, {len(kwargs)} kwargs")
                     resp = self.endpoints[cmd](*args, **kwargs)
                     resp = (ReqType.RET.value, resp)
                     self.conn.send(msgpack.packb(resp))
@@ -71,28 +72,15 @@ class BidirPC:
                     logger.debug(f"ret {ret}")
                     self.queue.append(ret)
                 elif req_type == ReqType.ERR:
-                    msg, tb = req
-                    print(
-                        f"=== Error in remote ===\n{tb}=== End Remote Error ===",
-                        file=sys.stderr,
-                    )
-                    raise RemoteError(msg)
+                    s = req[0]
+                    exc = pickle.loads(s)
+                    raise exc
 
         return self.queue.pop(0)
 
-    def exception(self, err):
-        msg = str(err)
-        tb = traceback.format_exc()
-
-        self.conn.send(
-            msgpack.packb(
-                (
-                    ReqType.ERR.value,
-                    msg,
-                    tb,
-                )
-            )
-        )
+    def exception(self, exc):
+        s = pickle.dumps(exc)
+        self.conn.send(msgpack.packb([ReqType.ERR.value, s]))
 
     def __getattr__(self, name):
         def call(*args, **kwargs):

@@ -45,11 +45,22 @@ class NetworkObj:
         return self.__glass_ser.deserialize(ser)
 
     def __call__(self, *args, **kwargs):
+        args = tuple(self.__glass_ser.serialize(arg) for arg in args)
+        kwargs = {k: self.__glass_ser.serialize(v) for k, v in kwargs.items()}
+
         ser = self.__glass_ser.rpc.obj_call(self.__glass_obj_id, args, kwargs)
         return self.__glass_ser.deserialize(ser)
 
-    def __del__(self):
-        self.__glass_ser.rpc.obj_del(self.__glass_obj_id)
+    def __iter__(self):
+        ser = self.__glass_ser.rpc.obj_iter(self.__glass_obj_id)
+        return self.__glass_ser.deserialize(ser)
+
+    def __next__(self):
+        ser = self.__glass_ser.rpc.obj_next(self.__glass_obj_id)
+        return self.__glass_ser.deserialize(ser)
+
+    # def __del__(self):
+    #     self.__glass_ser.rpc.obj_del(self.__glass_obj_id)
 
 
 class Serializer:
@@ -87,8 +98,18 @@ class Serializer:
             return self.serialize(ret)
 
         @rpc.endpoint
-        def obj_del(obj_id):
-            del self.ref_objs[obj_id]
+        def obj_iter(obj_id):
+            obj = self.ref_objs[obj_id]
+            return self.serialize(iter(obj))
+
+        @rpc.endpoint
+        def obj_next(obj_id):
+            obj = self.ref_objs[obj_id]
+            return self.serialize(next(obj))
+
+        # @rpc.endpoint
+        # def obj_del(obj_id):
+        #     del self.ref_objs[obj_id]
 
         @rpc.endpoint
         def get_global_endpoint(mod, name):
