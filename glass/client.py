@@ -1,8 +1,9 @@
 import types
 import socket
 import marshal
-import msgpack
+
 from .bidirpc import BidirPC
+from .network_obj import obj_to_net, obj_from_net, add_network_obj_endpoints
 
 
 class Connection(BidirPC):
@@ -11,6 +12,9 @@ class Connection(BidirPC):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
         self.connect(self.socket)
+
+        self.objs = {}
+        add_network_obj_endpoints(self, self.objs)
 
     def close(self):
         self.socket.close()
@@ -65,7 +69,11 @@ class Remote:
                 else:  # same level as this function, transfer it
                     self.conn.add_global_func(gn, marshal.dumps(val.__code__))
 
-            return self.conn.call_name(func.__name__, args, kwargs)
+            args = tuple(obj_to_net(self.conn.objs, arg) for arg in args)
+            kwargs = {k: obj_to_net(self.conn.objs, v) for k, v in kwargs.items()}
+
+            ret = self.conn.call_name(func.__name__, args, kwargs)
+            return obj_from_net(self.conn, ret)
 
         self.conn.add_global_func(func.__name__, marshal.dumps(func.__code__))
         return new_func

@@ -5,12 +5,12 @@ remote = Remote("localhost", 8000)
 
 
 @remote.func
-def hostname():
-    return os.uname().nodename
+def stuff(f):
+    return f.read()
 
 
 def main():
-    print(hostname())
+    print(stuff(open("pyproject.toml", "r")))
     pass
 
 

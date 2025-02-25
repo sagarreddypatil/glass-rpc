@@ -1,7 +1,10 @@
 import sys
+import logging
 import traceback
 from enum import Enum
 import msgpack
+
+logger = logging.getLogger(__name__)
 
 
 class ReqType(Enum):
@@ -12,6 +15,14 @@ class ReqType(Enum):
 
 class RemoteError(Exception):
     pass
+
+
+def can_serialize(obj):
+    try:
+        msgpack.packb(obj)
+        return True
+    except Exception:
+        return False
 
 
 class BidirPC:
@@ -46,14 +57,22 @@ class BidirPC:
                 req = req[1:]
                 if req_type == ReqType.CALL:
                     cmd, args, kwargs = req
+                    logger.debug(
+                        f"endpoint {cmd} {len(args)} args, {len(kwargs)} kwargs"
+                    )
                     resp = self.endpoints[cmd](*args, **kwargs)
                     resp = (ReqType.RET.value, resp)
                     self.conn.send(msgpack.packb(resp))
                 elif req_type == ReqType.RET:
-                    self.queue.append(req)
+                    ret = req[0]
+                    logger.debug(f"ret {ret}")
+                    self.queue.append(ret)
                 elif req_type == ReqType.ERR:
                     msg, tb = req
-                    print(f"=== Error in remote ===\n{tb}=== End Remote Error ===", file=sys.stderr)
+                    print(
+                        f"=== Error in remote ===\n{tb}=== End Remote Error ===",
+                        file=sys.stderr,
+                    )
                     raise RemoteError(msg)
 
         return self.queue.pop(0)
