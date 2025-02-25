@@ -1,25 +1,18 @@
-from glass.client import Remote
+import os
+from glass.client import Remote, host_func
 
 remote = Remote("localhost", 8000)
 
 
-class SomeClass():
-    def __init__(self):
-        print("SomeClass.__init__()")
-
-    def some_method(self, *args):
-        print(f"SomeClass.some_method{args}")
-
-
-obj2 = SomeClass()
+@host_func
+def host_print(*args):
+    print(*args)
 
 
 @remote.func
 def test_fn():
-    wow = SomeClass()
-    wow.some_method("A")
-    print(__name__)
-    obj2.some_method("B")
+    host_print(os.getcwd())
+    host_print(__name__)
 
 
 test_fn()

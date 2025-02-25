@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 rpc = BidirPC()
-glbls = {"__name__": "__remote__"}
+glbls = {}
 objs = {}
 
 
@@ -28,7 +28,7 @@ def add_global_func(name, code):
 
 
 @rpc.endpoint
-def add_global_class(name, code):
+def add_global_class(name, ser):
     pass
 
 
@@ -82,6 +82,9 @@ if __name__ == "__main__":
         if pid == 0:
             pid = os.getpid()
             logger.info(f"connection accepted from {addr}")
+            HOME = os.environ["HOME"]
+            logger.info(f"setting workdir to {HOME}")
+            os.chdir(HOME)
             rpc.connect(conn)
             while True:
                 try:

@@ -1,4 +1,3 @@
-import sys
 import types
 import socket
 import marshal
@@ -41,6 +40,9 @@ EXCLUDE_GLOBALS = {
 }
 
 
+host_globals = set()
+
+
 class Remote:
     def __init__(self, host, port):
         self.conn = Connection(host, port)
@@ -50,6 +52,8 @@ class Remote:
         for gn, val in items.items():
             if gn in EXCLUDE_GLOBALS or gn in self.synced_globals:
                 continue
+            elif gn in host_globals:
+                self.conn.add_global_netobj(gn, obj_to_net(self.conn.objs, val))
             elif can_serialize(val):
                 self.conn.add_global_netobj(gn, obj_to_net(self.conn.objs, val))
             elif isinstance(val, types.ModuleType):  # need to import module
@@ -68,7 +72,7 @@ class Remote:
             self.synced_globals.add(gn)
 
     def cls(self, cls: type):
-        raise Exception("classes unsupported")
+        raise Exception("Cannot handle classes")
 
     def func(self, func: types.FunctionType):
         if func.__closure__ is not None:
@@ -92,3 +96,8 @@ class Remote:
 
         self.conn.add_global_func(func.__name__, marshal.dumps(func.__code__))
         return new_func
+
+
+def host_func(func: types.FunctionType):
+    host_globals.add(func.__name__)
+    return func
