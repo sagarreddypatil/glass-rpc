@@ -2,68 +2,26 @@ import os
 import types
 import socket
 import marshal
-import msgpack
 import importlib
+from .bidirpc import BidirPC
 
-
-class Server:
-    def __init__(self):
-        self.commands = {}
-
-    def run(self, host, port):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind((host, port))
-        s.listen(5)
-
-        while True:
-            conn, _addr = s.accept()
-            pid = os.fork()
-            if pid == 0:
-                unpacker = msgpack.Unpacker()
-                while True:
-                    resp = conn.recv(1024)
-                    if not resp:
-                        break
-                    unpacker.feed(resp)
-                    for req in unpacker:
-                        resp = self.process_request(req)
-                        conn.send(msgpack.packb(resp))
-                conn.close()
-                os._exit(0)
-            else:
-                conn.close()
-
-    def process_request(self, req):
-        cmd = req["cmd"]
-        args = req["args"]
-        kwargs = req["kwargs"]
-
-        resp = self.commands[cmd](*args, **kwargs)
-        return resp
-
-    def command(self, func):
-        self.commands[func.__name__] = func
-        return func
-
-
-server = Server()
+rpc = BidirPC()
 glbls = {"__name__": "__remote__"}
 
 
-@server.command
+@rpc.endpoint
 def add_global_func(name, code):
     code = marshal.loads(code)
     func = types.FunctionType(code, glbls, name)
     glbls[name] = func
 
 
-@server.command
+@rpc.endpoint
 def call_name(name, args, kwargs):
     return glbls[name](*args, **kwargs)
 
 
-@server.command
+@rpc.endpoint
 def add_global_import(name, module, member=None):
     item = importlib.import_module(module)
     if member:
@@ -72,4 +30,35 @@ def add_global_import(name, module, member=None):
 
 
 if __name__ == "__main__":
-    server.run("localhost", 8000)
+    import sys
+
+    if len(sys.argv) != 3:
+        print("Usage: server.py <host> <port>")
+        sys.exit(1)
+
+    host = sys.argv[1]
+    port = int(sys.argv[2])
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind((host, port))
+    s.listen(5)
+
+    while True:
+        conn, _addr = s.accept()
+        pid = os.fork()
+        if pid == 0:
+            rpc.connect(conn)
+            while True:
+                try:
+                    rpc.recv()
+                except EOFError:
+                    print("connection closed")
+                    break
+                except Exception as e:
+                    rpc.exception(e)
+
+            conn.close()
+            os._exit(0)
+        else:
+            conn.close()

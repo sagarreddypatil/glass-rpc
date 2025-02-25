@@ -2,34 +2,15 @@ import types
 import socket
 import marshal
 import msgpack
+from .bidirpc import BidirPC
 
 
-class Connection:
+class Connection(BidirPC):
     def __init__(self, host, port):
+        super().__init__()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
-        self.unpacker = msgpack.Unpacker()
-        self.unpacked = []
-
-    def send(self, data):
-        data = msgpack.packb(data)
-        self.socket.send(data)
-
-        while len(self.unpacked) == 0:
-            resp = self.socket.recv(1024)
-            if not resp:
-                raise Exception("Connection closed")
-            self.unpacker.feed(resp)
-            for unpacked in self.unpacker:
-                self.unpacked.append(unpacked)
-
-        return self.unpacked.pop(0)
-
-    def __getattr__(self, name):
-        def _remote_call(*args, **kwargs):
-            return self.send({"cmd": name, "args": args, "kwargs": kwargs})
-
-        return _remote_call
+        self.connect(self.socket)
 
     def close(self):
         self.socket.close()
