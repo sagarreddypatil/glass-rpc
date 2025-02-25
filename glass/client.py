@@ -1,3 +1,4 @@
+import sys
 import types
 import socket
 import marshal
@@ -57,11 +58,12 @@ class Remote:
                 raise Exception(f"Cannot handle global {gn}")
             elif val.__module__ != parent_mod:  # need to import member
                 self.conn.add_global_import(gn, val.__module__, val.__name__)
-            elif isinstance(val, types.FunctionType):  # at same level as this function, send it
+            elif isinstance(
+                val, types.FunctionType
+            ):  # at same level as this function, send it
                 self.func(val)
             else:
                 raise Exception(f"Cannot handle global {gn}")
-
 
     def func(self, func: types.FunctionType):
         if func.__closure__ is not None:
