@@ -139,7 +139,12 @@ class Serializer:
         if isinstance(obj, types.ModuleType):
             return [ObjType.MOD_IMPORT.value, obj.__name__, None]
 
-        if "__module__" in dir(obj) and obj.__module__ != "__main__":
+        if (
+            "__module__" in dir(obj)
+            and "__name__" in dir(obj)
+            and obj.__module__ != "__main__"
+            and obj.__module__ is not None
+        ):
             # import the module
             return [ObjType.MOD_IMPORT.value, obj.__module__, obj.__name__]
 

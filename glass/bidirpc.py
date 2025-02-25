@@ -1,6 +1,5 @@
 import socket
 import logging
-import traceback
 from enum import Enum
 import msgpack
 import pickle
@@ -15,10 +14,6 @@ class ReqType(Enum):
     CALL = 0
     RET = 1
     ERR = 2
-
-
-# class RemoteError(Exception):
-#     pass
 
 
 def can_serialize(obj):

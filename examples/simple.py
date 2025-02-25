@@ -1,3 +1,4 @@
+import os
 from glass.client import Remote
 
 remote = Remote("localhost", 8000)
@@ -5,8 +6,6 @@ remote = Remote("localhost", 8000)
 
 @remote.capture
 def test_fn():
-    for i in range(10):
-        yield i
+    return open("/Users/sagar/.zshrc", "r")
 
-
-print(list(test_fn()))
+print(test_fn().read())
