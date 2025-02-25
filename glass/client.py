@@ -45,29 +45,37 @@ class Remote:
         self.conn = Connection(host, port)
         self.synced_globals = set()
 
+    def sync_globals(self, items, parent_mod=None):
+        for gn, val in items.items():
+            if gn in EXCLUDE_GLOBALS or gn in self.synced_globals:
+                continue
+            if isinstance(val, types.ModuleType):  # need to import module
+                self.conn.add_global_import(gn, val.__name__)
+            elif "__module__" not in dir(val):  # arbitrary object
+                raise Exception(f"Cannot handle global {gn}")
+            elif "__name__" not in dir(val):  # built-in object?
+                raise Exception(f"Cannot handle global {gn}")
+            elif val.__module__ != parent_mod:  # need to import member
+                self.conn.add_global_import(gn, val.__module__, val.__name__)
+            elif isinstance(val, types.FunctionType):  # at same level as this function, send it
+                self.func(val)
+            else:
+                raise Exception(f"Cannot handle global {gn}")
+
+
     def func(self, func: types.FunctionType):
         if func.__closure__ is not None:
             raise Exception("Cannot handle closures")
 
         names = set(func.__code__.co_names)
+        unsynced_globals = names.intersection(set(func.__globals__.keys()))
+        unsynced_globals = {gn: func.__globals__[gn] for gn in unsynced_globals}
+        self.sync_globals(unsynced_globals, func.__module__)
 
         def new_func(*args, **kwargs):
-            unsynced_globals = names.intersection(
-                set(func.__globals__.keys()) - self.synced_globals - EXCLUDE_GLOBALS
-            )
-
-            for gn in unsynced_globals:
-                val = func.__globals__[gn]
-                if isinstance(val, types.ModuleType):  # need to import module
-                    self.conn.add_global_import(gn, val.__name__)
-                elif "__module__" not in dir(val):  # arbitrary object
-                    raise Exception(f"Cannot handle global {gn}")
-                elif "__name__" not in dir(val):  # built-in object?
-                    raise Exception(f"Cannot handle global {gn}")
-                elif val.__module__ != func.__module__:  # need to import member
-                    self.conn.add_global_import(gn, val.__module__, val.__name__)
-                else:  # same level as this function, transfer it
-                    self.conn.add_global_func(gn, marshal.dumps(val.__code__))
+            unsynced_globals = names.intersection(set(func.__globals__.keys()))
+            unsynced_globals = {gn: func.__globals__[gn] for gn in unsynced_globals}
+            self.sync_globals(unsynced_globals, func.__module__)
 
             args = tuple(obj_to_net(self.conn.objs, arg) for arg in args)
             kwargs = {k: obj_to_net(self.conn.objs, v) for k, v in kwargs.items()}
