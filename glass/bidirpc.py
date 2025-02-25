@@ -40,6 +40,11 @@ class BidirPC:
         self.endpoints[func.__name__] = func
         return func
 
+    def live(self):
+        if self.conn:
+            return self.conn.fileno() != -1
+        return False
+
     def connect(self, conn):
         assert self.conn is None
         assert isinstance(conn, socket.socket)

@@ -2,14 +2,8 @@ import sys
 import types
 import marshal
 import importlib
-from enum import Enum
-
-
-class ObjType(Enum):
-    SIMPLE = 0
-    FUNC = 1
-    REF = 10
-    MOD_IMPORT = 11
+from .types import ObjType
+from .netobj import NetworkObj, netobj_endpoints
 
 
 def is_simple(obj):
@@ -32,84 +26,12 @@ class FunctionDict(dict):
         return ret
 
 
-class NetworkObj:
-    def __init__(self, ser, obj_id):
-        self.__glass_ser = ser
-        self.__glass_obj_id = obj_id
-
-    def __getattr__(self, name):
-        if name.startswith("__glass_"):
-            return super().__getattr__(name)
-
-        ser = self.__glass_ser.rpc.obj_getattr(self.__glass_obj_id, name)
-        return self.__glass_ser.deserialize(ser)
-
-    def __call__(self, *args, **kwargs):
-        args = tuple(self.__glass_ser.serialize(arg) for arg in args)
-        kwargs = {k: self.__glass_ser.serialize(v) for k, v in kwargs.items()}
-
-        ser = self.__glass_ser.rpc.obj_call(self.__glass_obj_id, args, kwargs)
-        return self.__glass_ser.deserialize(ser)
-
-    def __iter__(self):
-        ser = self.__glass_ser.rpc.obj_iter(self.__glass_obj_id)
-        return self.__glass_ser.deserialize(ser)
-
-    def __next__(self):
-        ser = self.__glass_ser.rpc.obj_next(self.__glass_obj_id)
-        return self.__glass_ser.deserialize(ser)
-
-    # def __del__(self):
-    #     self.__glass_ser.rpc.obj_del(self.__glass_obj_id)
-
-
 class Serializer:
     def __init__(self, rpc):
         self.rpc = rpc
         self.ref_objs = {}
         self.module_globals = FunctionDict(lambda mod: self.new_mod_globals(mod))
-
-        @rpc.endpoint
-        def add_obj(ser):
-            typ = ObjType(ser[0])
-            if typ == ObjType.SIMPLE:
-                raise Exception(
-                    "tried to capture simple object - you are probably doing something wrong"
-                )
-            elif typ == ObjType.REF:
-                raise Exception("tried to capture a network reference object")
-
-            obj = self.deserialize(ser)
-            return self.serialize_ref(obj)
-
-        @rpc.endpoint
-        def obj_getattr(obj_id, name):
-            obj = self.ref_objs[obj_id]
-            attr = getattr(obj, name)
-            return self.serialize(attr)
-
-        @rpc.endpoint
-        def obj_call(obj_id, args, kwargs):
-            obj = self.ref_objs[obj_id]
-            args = tuple(self.deserialize(arg) for arg in args)
-            kwargs = {k: self.deserialize(v) for k, v in kwargs.items()}
-
-            ret = obj(*args, **kwargs)
-            return self.serialize(ret)
-
-        @rpc.endpoint
-        def obj_iter(obj_id):
-            obj = self.ref_objs[obj_id]
-            return self.serialize(iter(obj))
-
-        @rpc.endpoint
-        def obj_next(obj_id):
-            obj = self.ref_objs[obj_id]
-            return self.serialize(next(obj))
-
-        # @rpc.endpoint
-        # def obj_del(obj_id):
-        #     del self.ref_objs[obj_id]
+        netobj_endpoints(self, rpc)
 
         @rpc.endpoint
         def get_global_endpoint(mod, name):
@@ -151,7 +73,11 @@ class Serializer:
         # if it's a function, send the code
         if isinstance(obj, types.FunctionType):
             code_ser = marshal.dumps(obj.__code__)
-            return [ObjType.FUNC.value, obj.__module__, obj.__name__, code_ser]
+            if obj.__closure__ is None:
+                closure_ser = None
+            else:
+                closure_ser = tuple(self.serialize_ref(c.cell_contents) for c in obj.__closure__)
+            return [ObjType.FUNC.value, obj.__module__, obj.__name__, code_ser, closure_ser]
 
         # TODO: handle classes
         if isinstance(obj, type):
@@ -170,9 +96,13 @@ class Serializer:
         if typ == ObjType.SIMPLE:
             return ser[1]
         elif typ == ObjType.FUNC:
-            mod, name, code_ser = ser[1:]
+            mod, name, code_ser, closure_ser = ser[1:]
             code = marshal.loads(code_ser)
-            func = types.FunctionType(code, self.module_globals[mod], name)
+            if closure_ser is None:
+                closure = None
+            else:
+                closure = tuple(types.CellType(self.deserialize(c)) for c in closure_ser)
+            func = types.FunctionType(code, self.module_globals[mod], name, None, closure)
             return func
         elif typ == ObjType.REF:
             obj_id = ser[1]

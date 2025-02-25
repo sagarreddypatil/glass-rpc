@@ -3,9 +3,9 @@ from glass.client import Remote
 
 remote = Remote("localhost", 8000)
 
-
 @remote.capture
-def test_fn():
-    return open("/Users/sagar/.zshrc", "r")
+def test():
+    return open("README.md")
 
-print(test_fn().read())
+
+print(test().read())
