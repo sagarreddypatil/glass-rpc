@@ -81,7 +81,7 @@ class Serializer:
             if obj.cell_contents in context:
                 return [ObjType.CELL_REF.value, id(obj.cell_contents)]
             else:
-                return [ObjType.CELL.value, self.serialize(obj.cell_contents)]
+                return [ObjType.CELL_DIRECT.value, self.serialize(obj.cell_contents)]
 
         if isinstance(obj, types.ModuleType):
             logger.debug(f"serialize: module {obj.__name__}")

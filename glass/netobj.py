@@ -1,4 +1,3 @@
-import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -41,6 +40,9 @@ class NetworkObj:
         rpc.obj_del(self.__glass_obj_id)
 
 
+# class NetworkCell(types
+
+
 def netobj_endpoints(srl: "Serializer", rpc):
     @rpc.endpoint
     def add_obj(ser, to_global=False):
@@ -54,7 +56,6 @@ def netobj_endpoints(srl: "Serializer", rpc):
 
         obj = srl.deserialize(ser)
         if to_global:
-            print(f"adding global object {obj.__module__}.{obj.__name__}")
             srl.module_globals[obj.__module__][obj.__name__] = obj
         return srl.serialize_ref(obj)
 
