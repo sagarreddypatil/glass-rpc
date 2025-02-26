@@ -1,3 +1,8 @@
+import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .serdes import Serializer
 from .types import ObjType
 
 
@@ -36,9 +41,9 @@ class NetworkObj:
         rpc.obj_del(self.__glass_obj_id)
 
 
-def netobj_endpoints(self, rpc):
+def netobj_endpoints(srl: "Serializer", rpc):
     @rpc.endpoint
-    def add_obj(ser):
+    def add_obj(ser, to_global=False):
         typ = ObjType(ser[0])
         if typ == ObjType.SIMPLE:
             raise Exception(
@@ -47,41 +52,44 @@ def netobj_endpoints(self, rpc):
         elif typ == ObjType.REF:
             raise Exception("tried to capture a network reference object")
 
-        obj = self.deserialize(ser)
-        return self.serialize_ref(obj)
+        obj = srl.deserialize(ser)
+        if to_global:
+            print(f"adding global object {obj.__module__}.{obj.__name__}")
+            srl.module_globals[obj.__module__][obj.__name__] = obj
+        return srl.serialize_ref(obj)
 
     @rpc.endpoint
     def obj_getattr(obj_id, name):
-        obj = self.ref_objs[obj_id]
+        obj = srl.ref_objs[obj_id]
         attr = getattr(obj, name)
-        return self.serialize(attr)
+        return srl.serialize(attr)
 
     @rpc.endpoint
     def obj_call(obj_id, args, kwargs):
-        obj = self.ref_objs[obj_id]
-        args = tuple(self.deserialize(arg) for arg in args)
-        kwargs = {k: self.deserialize(v) for k, v in kwargs.items()}
+        obj = srl.ref_objs[obj_id]
+        args = tuple(srl.deserialize(arg) for arg in args)
+        kwargs = {k: srl.deserialize(v) for k, v in kwargs.items()}
 
         ret = obj(*args, **kwargs)
-        return self.serialize(ret)
+        return srl.serialize(ret)
 
     @rpc.endpoint
     def obj_iter(obj_id):
-        obj = self.ref_objs[obj_id]
-        return self.serialize(iter(obj))
+        obj = srl.ref_objs[obj_id]
+        return srl.serialize(iter(obj))
 
     @rpc.endpoint
     def obj_next(obj_id):
-        obj = self.ref_objs[obj_id]
-        return self.serialize(next(obj))
+        obj = srl.ref_objs[obj_id]
+        return srl.serialize(next(obj))
 
     @rpc.endpoint
     def obj_iadd(obj_id, other):
-        other = self.deserialize(other)
-        obj = self.ref_objs[obj_id]
+        other = srl.deserialize(other)
+        obj = srl.ref_objs[obj_id]
         obj += other
-        return self.serialize(obj)
+        return srl.serialize(obj)
 
     @rpc.endpoint
     def obj_del(obj_id):
-        del self.ref_objs[obj_id]
+        del srl.ref_objs[obj_id]

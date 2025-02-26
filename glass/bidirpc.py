@@ -5,6 +5,14 @@ import msgpack
 import pickle
 from tblib import pickling_support
 from .util import fmt_args_kwargs, pretty
+import json
+
+class BytesEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, bytes):
+            return f"<bytes {len(o)}>"
+        else:
+            return super().default(o)
 
 pickling_support.install()
 

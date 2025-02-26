@@ -1,22 +1,14 @@
-def _pretty(s):
-    if isinstance(s, bytes):
-        return f"<{len(s)} bytes>"
-    if isinstance(s, list):
-        return list(map(_pretty, s))
-    if isinstance(s, dict):
-        return {k: _pretty(v) for k, v in s.items()}
-    if isinstance(s, tuple):
-        return tuple(map(_pretty, s))
-    if isinstance(s, set):
-        return set(map(_pretty, s))
-    if isinstance(s, str):
-        if len(s) > 10:
-            return f"{s[:10]}..."
-        return s
-    return s
+import json
+
+class BytesEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, bytes):
+            return f"<bytes {len(o)}>"
+        else:
+            return super().default(o)
 
 def pretty(s):
-    return str(_pretty(s))
+    return json.dumps(s, cls=BytesEncoder)
 
 
 def fmt_args_kwargs(args, kwargs):
