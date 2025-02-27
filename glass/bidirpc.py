@@ -7,12 +7,14 @@ from tblib import pickling_support
 from .util import fmt_args_kwargs, pretty
 import json
 
+
 class BytesEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, bytes):
             return f"<bytes {len(o)}>"
         else:
             return super().default(o)
+
 
 pickling_support.install()
 
@@ -86,6 +88,13 @@ class BidirPC:
         return self.queue.pop(0)
 
     def exception(self, exc):
+        try:
+            raise exc
+        except KeyError as e:
+            raise e
+        except Exception:
+            pass
+
         s = pickle.dumps(exc)
         self.conn.send(msgpack.packb([ReqType.ERR.value, s]))
 

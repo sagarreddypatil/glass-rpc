@@ -4,17 +4,21 @@ from glass.client import Remote
 remote = Remote("localhost", 8000)
 
 
+class Container:
+    def __init__(self, x):
+        self.x = x
+
+
 def enclosing():
-    x = 5
+    xc = Container(5)
 
     @remote.capture
     def inner():
-        nonlocal x
-        print(x)
-        x += 5
-        return x
+        nonlocal xc
+        xc.x += 5
 
-    x = inner()
-    return x
+    inner()
+    return xc.x
+
 
 print(enclosing())

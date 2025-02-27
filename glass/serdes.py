@@ -54,14 +54,17 @@ class Serializer:
         logger.debug(f"creating new module globals: {mod}")
         out = FunctionDict(lambda name: self.get_global(mod, name))
         out["__name__"] = mod
-        out["__builtins__"] = __builtins__
+        # out["__builtins__"] = __builtins__
         return out
 
     def get_global(self, mod, name):
         logger.debug(f"get_global: {mod}.{name}")
-        if name in self.module_globals[mod]["__builtins__"]:
+        # if name in self.module_globals[mod]["__builtins__"]:
+        #     logger.debug(f"found in builtins: {name}")
+        #     return self.module_globals[mod]["__builtins__"][name]
+        if name in __builtins__:
             logger.debug(f"found in builtins: {name}")
-            return self.module_globals[mod]["__builtins__"][name]
+            return __builtins__[name]
         ser = self.rpc.get_global_endpoint(mod, name)
         logger.debug(f"retrieved via rpc: {name}")
         return self.deserialize(ser)
@@ -87,10 +90,13 @@ class Serializer:
             logger.debug(f"serialize: module {obj.__name__}")
             return [ObjType.MOD_IMPORT.value, obj.__name__, None]
 
-        if obj.__module__ != "__main__" and obj.__module__ is not None:
-            # import the module
-            logger.debug(f"serialize: module member {obj.__module__}.{obj.__name__}")
-            return [ObjType.MOD_IMPORT.value, obj.__module__, obj.__name__]
+        try:
+            if obj.__module__ != "__main__" and obj.__module__ is not None:
+                # import the module
+                logger.debug(f"serialize: module member {obj.__module__}.{obj.__name__}")
+                return [ObjType.MOD_IMPORT.value, obj.__module__, obj.__name__]
+        except AttributeError:
+            pass
 
         # if it's a function, send the code
         if isinstance(obj, types.FunctionType):

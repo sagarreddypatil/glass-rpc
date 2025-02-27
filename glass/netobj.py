@@ -1,4 +1,7 @@
 from typing import TYPE_CHECKING
+import logging
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .serdes import Serializer
@@ -93,4 +96,7 @@ def netobj_endpoints(srl: "Serializer", rpc):
 
     @rpc.endpoint
     def obj_del(obj_id):
+        if obj_id not in srl.ref_objs:
+            logger.debug(f"obj_del: {obj_id} not found")
+            return
         del srl.ref_objs[obj_id]
