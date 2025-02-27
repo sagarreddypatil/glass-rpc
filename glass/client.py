@@ -21,6 +21,10 @@ class Remote:
         self.ser = Serializer(self.rpc)
 
     def capture(self, obj):
+        # raise exception if obj is a method in a class
+        if hasattr(obj, "__qualname__") and "." in obj.__qualname__:
+            raise Exception("cannot capture bound method")
+
         ser = self.ser.serialize(obj)
         stub = self.rpc.add_obj(ser, to_global=True)
         stub = self.ser.deserialize(stub)

@@ -48,20 +48,16 @@ class Serializer:
             main_globals = sys.modules["__main__"].__dict__
             obj = main_globals[name]
 
-            return self.serialize(obj)
+            return self.serialize_ref(obj)
 
     def new_mod_globals(self, mod):
         logger.debug(f"creating new module globals: {mod}")
         out = FunctionDict(lambda name: self.get_global(mod, name))
         out["__name__"] = mod
-        # out["__builtins__"] = __builtins__
         return out
 
     def get_global(self, mod, name):
         logger.debug(f"get_global: {mod}.{name}")
-        # if name in self.module_globals[mod]["__builtins__"]:
-        #     logger.debug(f"found in builtins: {name}")
-        #     return self.module_globals[mod]["__builtins__"][name]
         if name in __builtins__:
             logger.debug(f"found in builtins: {name}")
             return __builtins__[name]
@@ -102,11 +98,21 @@ class Serializer:
         if isinstance(obj, types.FunctionType):
             logger.debug(f"serialize: function {obj.__module__}.{obj.__qualname__}")
             code_ser = marshal.dumps(obj.__code__)
+            argdefs_ser = self.serialize(obj.__defaults__, context + [obj])
+            kwdefs_ser = self.serialize(obj.__kwdefaults__, context + [obj])
             if obj.__closure__ is None:
                 closure_ser = None
             else:
                 closure_ser = tuple(self.serialize(c, context + [obj]) for c in obj.__closure__)
-            return [ObjType.FUNC.value, obj.__module__, obj.__name__, code_ser, closure_ser]
+            return [
+                ObjType.FUNC.value,
+                obj.__module__,
+                obj.__name__,
+                argdefs_ser,
+                kwdefs_ser,
+                code_ser,
+                closure_ser,
+            ]
 
         if isinstance(obj, type):
             context = context + [obj]
@@ -137,14 +143,24 @@ class Serializer:
             logger.debug(f"deserialize: {typ}")
             return ser[1]
         elif typ == ObjType.FUNC:
-            mod, name, code_ser, closure_ser = ser[1:]
+            mod, name, argdefs_ser, kwdefs_ser, code_ser, closure_ser = ser[1:]
             logger.debug(f"deserialize: {typ} {mod}.{name}")
             code = marshal.loads(code_ser)
             if closure_ser is None:
                 closure = None
             else:
                 closure = tuple(self.deserialize(c) for c in closure_ser)
-            func = types.FunctionType(code, self.module_globals[mod], name, None, closure)
+            if argdefs_ser is None:
+                argdefs = None
+            else:
+                argdefs = tuple(self.deserialize(argdefs_ser))
+            if kwdefs_ser is None:
+                kwdefs = None
+            else:
+                kwdefs = self.deserialize(kwdefs_ser)
+            func = types.FunctionType(
+                code, self.module_globals[mod], name, argdefs, closure, kwdefs
+            )
             return func
         elif typ == ObjType.CLS:
             old_id, name, bases_ser, dict_ser = ser[1:]
