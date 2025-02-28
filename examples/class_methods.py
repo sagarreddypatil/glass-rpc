@@ -10,7 +10,7 @@ class RemoteProcessor:
         self.name = name
         self.start_time = time.time()
 
-    @remote.capture
+    @remote.capture # this is not supported
     def process_data(self, data):
         processed = []
         cwd = os.getcwd()
@@ -29,9 +29,13 @@ class RemoteProcessor:
 
 
 # Using a class with remote method
-processor = RemoteProcessor("DataHandler")
-result = processor.process_data(["item1", "item2", "item3"])
+def main():
+    processor = RemoteProcessor("DataHandler")
+    result = processor.process_data(["item1", "item2", "item3"])
 
-print(f"Processor: {result['name']}")
-print(f"Executed at: {result['remote_cwd']}")
-print(f"Items: {result['processed_items']}")
+    print(f"Processor: {result['name']}")
+    print(f"Executed at: {result['remote_cwd']}")
+    print(f"Items: {result['processed_items']}")
+
+if __name__ == "__main__":
+    main()

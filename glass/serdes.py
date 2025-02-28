@@ -48,7 +48,7 @@ class Serializer:
             main_globals = sys.modules["__main__"].__dict__
             obj = main_globals[name]
 
-            return self.serialize_ref(obj)
+            return self.serialize(obj)
 
     def new_mod_globals(self, mod):
         logger.debug(f"creating new module globals: {mod}")
@@ -104,6 +104,7 @@ class Serializer:
                 closure_ser = None
             else:
                 closure_ser = tuple(self.serialize(c, context + [obj]) for c in obj.__closure__)
+            print(obj.__module__, obj.__name__, argdefs_ser, kwdefs_ser, closure_ser)
             return [
                 ObjType.FUNC.value,
                 obj.__module__,
