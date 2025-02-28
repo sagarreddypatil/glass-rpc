@@ -18,7 +18,6 @@ def update_remote_state(iterations=5):
         state["values"].append(random.randint(1, 100))
 
     state["remote_path"] = cwd
-    # return state
 
 
 # Update state on remote machine

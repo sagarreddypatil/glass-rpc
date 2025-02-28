@@ -150,16 +150,12 @@ class Serializer:
                 closure = None
             else:
                 closure = tuple(self.deserialize(c) for c in closure_ser)
-            if argdefs_ser is None:
-                argdefs = None
-            else:
-                argdefs = tuple(self.deserialize(argdefs_ser))
-            if kwdefs_ser is None:
-                kwdefs = None
-            else:
-                kwdefs = self.deserialize(kwdefs_ser)
+            argdefs = self.deserialize(argdefs_ser)
+            if argdefs is not None:
+                argdefs = tuple(argdefs)
+            kwargdefs = self.deserialize(kwdefs_ser)
             func = types.FunctionType(
-                code, self.module_globals[mod], name, argdefs, closure, kwdefs
+                code, self.module_globals[mod], name, argdefs, closure, kwargdefs
             )
             return func
         elif typ == ObjType.CLS:

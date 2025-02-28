@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING
 import logging
-
-logger = logging.getLogger(__name__)
+from .types import ObjType
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .serdes import Serializer
-from .types import ObjType
+
+
+logger = logging.getLogger(__name__)
 
 
 class NetworkObj:
@@ -114,7 +115,7 @@ def netobj_endpoints(srl: "Serializer", rpc):
     def obj_getitem(obj_id, item):
         obj = srl.ref_objs[obj_id]
         item = srl.deserialize(item)
-        return srl.serialize_ref(obj[item])
+        return srl.serialize(obj[item])
 
     @rpc.endpoint
     def obj_setitem(obj_id, item, value):
