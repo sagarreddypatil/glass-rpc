@@ -104,7 +104,6 @@ class Serializer:
                 closure_ser = None
             else:
                 closure_ser = tuple(self.serialize(c, context + [obj]) for c in obj.__closure__)
-            print(obj.__module__, obj.__name__, argdefs_ser, kwdefs_ser, closure_ser)
             return [
                 ObjType.FUNC.value,
                 obj.__module__,
